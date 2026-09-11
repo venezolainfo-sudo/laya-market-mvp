@@ -6,6 +6,7 @@ from app.models import Address, Business, Delivery, Order, OrderItem, Payment, P
 from app.schemas import BusinessDeliveryIn, CheckoutQuoteIn, OrderIn
 from app.security import current_user, require
 from app.checkout_service import quote_checkout
+from app.logistics_api import add_notification
 
 router=APIRouter(prefix='/api/v1')
 
@@ -31,7 +32,7 @@ def checkout_order(data:OrderIn,u:User=Depends(require(Role.CUSTOMER,Role.ADMIN,
         db.add(OrderItem(order_id=o.id,product_id=p.id,presentation_id=pr.id if pr else None,name=p.name,presentation_label=pr.label if pr else None,quantity=qty,unit_price=x['unit_price'],subtotal=x['subtotal']))
     db.add(Payment(order_id=o.id,provider=data.payment_method,status=PaymentStatus.PENDING,amount=q['total'],currency=data.currency))
     if data.delivery_method=='COURIER':db.add(Delivery(order_id=o.id,fee=q['delivery_fee']))
-    db.commit();db.refresh(o);return {'id':o.id,'status':o.status.value,'payment_status':PaymentStatus.PENDING.value,'currency':o.currency,'subtotal':float(o.subtotal),'delivery_fee':float(o.delivery_fee),'total':float(o.total),'distance_km':o.distance_km,'delivery_method':o.delivery_method,'delivery_address':o.delivery_address}
+    add_notification(db,o,'NEW');db.commit();db.refresh(o);return {'id':o.id,'status':o.status.value,'payment_status':PaymentStatus.PENDING.value,'currency':o.currency,'subtotal':float(o.subtotal),'delivery_fee':float(o.delivery_fee),'total':float(o.total),'distance_km':o.distance_km,'delivery_method':o.delivery_method,'delivery_address':o.delivery_address}
 
 @router.get('/checkout/orders/my')
 def checkout_orders(u:User=Depends(current_user),db:Session=Depends(get_db)):
