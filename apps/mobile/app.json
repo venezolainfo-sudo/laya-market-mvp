@@ -13,9 +13,16 @@
       "package": "com.laya.market",
       "versionCode": 1,
       "adaptiveIcon": {"foregroundImage":"./assets/adaptive-icon.png","backgroundColor":"#01040B"},
-      "permissions": []
+      "permissions": ["ACCESS_COARSE_LOCATION","ACCESS_FINE_LOCATION"]
     },
-    "plugins": [["expo-build-properties", {"android": {"compileSdkVersion":36,"targetSdkVersion":36,"minSdkVersion":24}}]],
+    "ios": {
+      "bundleIdentifier": "com.laya.market",
+      "infoPlist": {"NSLocationWhenInUseUsageDescription":"LAYA Market usa tu ubicación para mostrar comercios cercanos, confirmar direcciones y calcular entregas."}
+    },
+    "plugins": [
+      ["expo-build-properties", {"android": {"compileSdkVersion":36,"targetSdkVersion":36,"minSdkVersion":24}}],
+      ["expo-location", {"locationWhenInUsePermission":"Permite que LAYA Market use tu ubicación para encontrar comercios cercanos y confirmar tu dirección."}]
+    ],
     "extra": {"eas": {"projectId":"REPLACE_WITH_EAS_PROJECT_ID"}}
   }
 }
