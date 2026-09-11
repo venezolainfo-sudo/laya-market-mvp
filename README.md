@@ -2,30 +2,33 @@
 
 ## Arranque recomendado en Windows
 
-Si descargaste el proyecto como ZIP desde GitHub, abre PowerShell dentro de la carpeta raíz `laya-market-mvp` y ejecuta:
+LAYA Market usa el PostgreSQL local instalado en Windows. Docker no forma parte del arranque del proyecto.
+
+Desde la carpeta raíz del proyecto ejecuta:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\start-dev.ps1
 ```
 
-Si trabajas con Git clone, primero puedes actualizar con `git pull` y luego ejecutar el mismo script.
+En la primera ejecución, si `backend/.env` todavía no existe, el script pide una sola vez los datos de tu PostgreSQL local (host, puerto, usuario y contraseña), guarda la conexión y crea automáticamente la base `laya_market` si aún no existe.
 
-El script:
-- levanta PostgreSQL con Docker usando un puerto host disponible;
-- crea/reutiliza `backend/.venv`;
+Después de esa primera configuración, el script:
+- reutiliza `backend/.venv` o lo crea si falta;
 - instala las dependencias Python del backend;
+- verifica PostgreSQL local;
+- crea la base `laya_market` si hace falta;
 - ejecuta Alembic;
 - aplica el seed demo de forma idempotente;
 - inicia FastAPI en un puerto disponible;
 - ejecuta `npm install` para los dashboards de comercio y administración;
-- inicia ambos dashboards con Vite sin fijar 5173/5174/5175;
+- inicia ambos dashboards con Vite en puertos disponibles;
 - conecta ambos dashboards al puerto real elegido por FastAPI.
 
 La terminal principal mostrará la URL real del backend y Swagger (`/docs`). Los dashboards imprimirán sus URLs en sus respectivas ventanas de PowerShell.
 
 ## Requisitos locales
 
-- Docker Desktop abierto y funcionando.
+- PostgreSQL instalado y con su servicio iniciado.
 - Python instalado y disponible como comando `python`.
 - Node.js y npm instalados.
 
