@@ -15,6 +15,7 @@ def upgrade():
     op.add_column('businesses',sa.Column('latitude',sa.Float(),nullable=True))
     op.add_column('businesses',sa.Column('longitude',sa.Float(),nullable=True))
     op.add_column('businesses',sa.Column('delivery_radius_km',sa.Float(),nullable=False,server_default='8'))
+    op.execute("UPDATE businesses SET latitude=-32.8895, longitude=-68.8458, delivery_radius_km=12 WHERE name='Mercado Demo LAYA' AND country='AR'")
 
 def downgrade():
     op.drop_column('businesses','delivery_radius_km'); op.drop_column('businesses','longitude'); op.drop_column('businesses','latitude')
