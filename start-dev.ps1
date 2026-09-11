@@ -56,6 +56,34 @@ CORS_ORIGINS=
     Write-Host "Saved local database configuration in $envFile"
 }
 
+function Install-BackendDependencies {
+    param([string]$PythonPath, [string]$BackendPath)
+
+    $requirements = Join-Path $BackendPath 'requirements.txt'
+    $marker = Join-Path $BackendPath '.venv\requirements.sha256'
+    $currentHash = (Get-FileHash $requirements -Algorithm SHA256).Hash
+    $installedHash = if (Test-Path $marker) { (Get-Content $marker -Raw).Trim() } else { '' }
+
+    if ($currentHash -ne $installedHash) {
+        Write-Host 'Installing backend dependencies...'
+        & $PythonPath -m pip install --disable-pip-version-check -r $requirements
+        Set-Content -Path $marker -Value $currentHash -Encoding ASCII
+    }
+    else {
+        Write-Host 'Backend dependencies already installed.'
+    }
+}
+
+function Get-DashboardCommand {
+    param([string]$DashboardPath, [string]$ApiBase)
+
+    $install = ''
+    if (-not (Test-Path (Join-Path $DashboardPath 'node_modules'))) {
+        $install = 'npm install; '
+    }
+    return "`$env:VITE_API_URL='$ApiBase'; $install`npm run dev"
+}
+
 $repoRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $backend = Join-Path $repoRoot 'backend'
 Set-Location $backend
@@ -66,10 +94,7 @@ if (-not (Test-Path '.venv\Scripts\python.exe')) {
 }
 
 $python = Join-Path $backend '.venv\Scripts\python.exe'
-
-Write-Host 'Installing backend dependencies...'
-& $python -m pip install --disable-pip-version-check -r requirements.txt
-
+Install-BackendDependencies -PythonPath $python -BackendPath $backend
 Initialize-BackendEnv -BackendPath $backend
 
 Write-Host 'Checking local PostgreSQL and LAYA Market database...'
@@ -88,11 +113,11 @@ $backendCommand = "& '$python' -m uvicorn app.main:app --reload --host 127.0.0.1
 Start-Process powershell -ArgumentList '-NoExit','-Command',$backendCommand -WorkingDirectory $backend
 
 $merchant = Join-Path $repoRoot 'apps\merchant-dashboard'
-$merchantCommand = "`$env:VITE_API_URL='$apiBase'; npm install; npm run dev"
+$merchantCommand = Get-DashboardCommand -DashboardPath $merchant -ApiBase $apiBase
 Start-Process powershell -ArgumentList '-NoExit','-Command',$merchantCommand -WorkingDirectory $merchant
 
 $admin = Join-Path $repoRoot 'apps\admin-dashboard'
-$adminCommand = "`$env:VITE_API_URL='$apiBase'; npm install; npm run dev"
+$adminCommand = Get-DashboardCommand -DashboardPath $admin -ApiBase $apiBase
 Start-Process powershell -ArgumentList '-NoExit','-Command',$adminCommand -WorkingDirectory $admin
 
 Write-Host ''
