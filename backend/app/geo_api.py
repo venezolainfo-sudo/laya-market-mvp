@@ -3,9 +3,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select, or_
 from sqlalchemy.orm import Session
 from app.db import get_db
-from app.models import Address, Business, BusinessStatus, BusinessType, Category, Product, User
+from app.models import Address, Business, BusinessStatus, BusinessType, Category, Product, User, Role
 from app.schemas import AddressIn
-from app.security import current_user
+from app.security import current_user, require
 
 router=APIRouter(prefix='/api/v1')
 
@@ -91,3 +91,10 @@ def delete_address(aid:str,u:User=Depends(current_user),db:Session=Depends(get_d
     a=db.get(Address,aid)
     if not a or a.user_id!=u.id: raise HTTPException(404,'Dirección no encontrada')
     db.delete(a);db.commit();return {'ok':True}
+
+@router.patch('/merchant/business/location')
+def merchant_business_location(latitude:float,longitude:float,delivery_radius_km:float=8,u:User=Depends(require(Role.MERCHANT,Role.ADMIN,Role.SUPERADMIN)),db:Session=Depends(get_db)):
+    b=db.scalar(select(Business).where(Business.owner_id==u.id))
+    if not b: raise HTTPException(404,'Negocio no encontrado')
+    b.latitude=latitude;b.longitude=longitude;b.delivery_radius_km=max(0.5,min(delivery_radius_km,100));db.commit()
+    return {'ok':True,'latitude':b.latitude,'longitude':b.longitude,'delivery_radius_km':b.delivery_radius_km}
