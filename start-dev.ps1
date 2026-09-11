@@ -8,22 +8,39 @@ function Get-FreeTcpPort {
     return $port
 }
 
+function Resolve-DockerExe {
+    $cmd = Get-Command docker -ErrorAction SilentlyContinue
+    if ($cmd) { return $cmd.Source }
+
+    $candidates = @(
+        'C:\Program Files\Docker\Docker\resources\bin\docker.exe',
+        'C:\Program Files\Docker\Docker\resources\docker.exe'
+    )
+    foreach ($candidate in $candidates) {
+        if (Test-Path $candidate) { return $candidate }
+    }
+
+    throw 'Docker CLI was not found. Open Docker Desktop once and reinstall Docker Desktop only if docker.exe is missing.'
+}
+
 $repoRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 Set-Location $repoRoot
+$docker = Resolve-DockerExe
 
+Write-Host "Using Docker: $docker"
 Write-Host 'Starting PostgreSQL...'
-docker compose up -d db | Out-Host
+& $docker compose up -d db | Out-Host
 
 Write-Host 'Waiting for PostgreSQL health...'
 $state = $null
 for ($i = 0; $i -lt 30; $i++) {
-    $state = docker inspect -f '{{.State.Health.Status}}' laya_market_postgres 2>$null
+    $state = & $docker inspect -f '{{.State.Health.Status}}' laya_market_postgres 2>$null
     if ($state -eq 'healthy') { break }
     Start-Sleep -Seconds 2
 }
 if ($state -ne 'healthy') { throw 'PostgreSQL did not become healthy.' }
 
-$portLine = docker compose port db 5432
+$portLine = & $docker compose port db 5432
 if (-not $portLine) { throw 'Could not resolve PostgreSQL host port.' }
 $dbPort = ($portLine -split ':')[-1].Trim()
 $backendPort = Get-FreeTcpPort
