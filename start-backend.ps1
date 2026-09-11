@@ -8,41 +8,71 @@ function Get-FreeTcpPort {
     return $port
 }
 
-$repoRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
-Set-Location $repoRoot
+function Initialize-BackendEnv {
+    param([string]$BackendPath)
 
-Write-Host 'Starting PostgreSQL...'
-docker compose up -d db | Out-Host
+    $envFile = Join-Path $BackendPath '.env'
+    if (Test-Path $envFile) { return }
 
-Write-Host 'Waiting for PostgreSQL health...'
-$state = $null
-for ($i = 0; $i -lt 30; $i++) {
-    $state = docker inspect -f '{{.State.Health.Status}}' laya_market_postgres 2>$null
-    if ($state -eq 'healthy') { break }
-    Start-Sleep -Seconds 2
+    Write-Host ''
+    Write-Host 'First local PostgreSQL setup for LAYA Market.'
+    Write-Host 'This is a one-time configuration. Docker is not used.'
+
+    $dbHost = Read-Host 'PostgreSQL host [127.0.0.1]'
+    if ([string]::IsNullOrWhiteSpace($dbHost)) { $dbHost = '127.0.0.1' }
+
+    $dbPort = Read-Host 'PostgreSQL port [5432]'
+    if ([string]::IsNullOrWhiteSpace($dbPort)) { $dbPort = '5432' }
+
+    $dbUser = Read-Host 'PostgreSQL user [postgres]'
+    if ([string]::IsNullOrWhiteSpace($dbUser)) { $dbUser = 'postgres' }
+
+    $securePassword = Read-Host "PostgreSQL password for '$dbUser'" -AsSecureString
+    $ptr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($securePassword)
+    try {
+        $dbPassword = [Runtime.InteropServices.Marshal]::PtrToStringBSTR($ptr)
+    }
+    finally {
+        [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($ptr)
+    }
+
+    $encodedUser = [Uri]::EscapeDataString($dbUser)
+    $encodedPassword = [Uri]::EscapeDataString($dbPassword)
+    $auth = $encodedUser
+    if (-not [string]::IsNullOrEmpty($dbPassword)) { $auth = "$encodedUser`:$encodedPassword" }
+
+    $databaseUrl = "postgresql+psycopg://$auth@$dbHost`:$dbPort/laya_market"
+
+    @"
+APP_NAME=LAYA Market API
+ENV=development
+DATABASE_URL=$databaseUrl
+JWT_SECRET=change-me-in-production
+JWT_ALGORITHM=HS256
+ACCESS_TOKEN_MINUTES=1440
+CORS_ORIGINS=
+"@ | Set-Content -Path $envFile -Encoding UTF8
+
+    Write-Host "Saved local database configuration in $envFile"
 }
-if ($state -ne 'healthy') { throw 'PostgreSQL did not become healthy.' }
 
-$portLine = docker compose port db 5432
-if (-not $portLine) { throw 'Could not resolve PostgreSQL host port.' }
-$dbPort = ($portLine -split ':')[-1].Trim()
-Write-Host "PostgreSQL host port: $dbPort"
-
+$repoRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $backend = Join-Path $repoRoot 'backend'
 Set-Location $backend
 
 if (-not (Test-Path '.venv\Scripts\python.exe')) {
-    Write-Host 'Creating virtual environment...'
+    Write-Host 'Creating backend virtual environment...'
     python -m venv .venv
 }
 
 $python = Join-Path $backend '.venv\Scripts\python.exe'
-
 Write-Host 'Installing backend dependencies...'
-& $python -m pip install --upgrade pip
-& $python -m pip install -r requirements.txt
+& $python -m pip install --disable-pip-version-check -r requirements.txt
 
-$env:DATABASE_URL = "postgresql+psycopg://laya:laya_dev_password@127.0.0.1:$dbPort/laya_market"
+Initialize-BackendEnv -BackendPath $backend
+
+Write-Host 'Checking local PostgreSQL and LAYA Market database...'
+& $python -m app.setup_db
 
 Write-Host 'Running migrations...'
 & $python -m alembic upgrade head
