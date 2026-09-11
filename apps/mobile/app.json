@@ -5,13 +5,14 @@
     "version": "0.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
-    "splash": {"image":"./assets/splash.png","resizeMode":"contain","backgroundColor":"#06122F"},
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#01040B",
+    "splash": {"image":"./assets/splash.png","resizeMode":"contain","backgroundColor":"#01040B"},
     "assetBundlePatterns": ["**/*"],
     "android": {
       "package": "com.laya.market",
       "versionCode": 1,
-      "adaptiveIcon": {"foregroundImage":"./assets/adaptive-icon.png","backgroundColor":"#06122F"},
+      "adaptiveIcon": {"foregroundImage":"./assets/adaptive-icon.png","backgroundColor":"#01040B"},
       "permissions": []
     },
     "plugins": [["expo-build-properties", {"android": {"compileSdkVersion":36,"targetSdkVersion":36,"minSdkVersion":24}}]],
