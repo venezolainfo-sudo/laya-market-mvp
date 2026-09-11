@@ -10,4 +10,5 @@ class OrderIn(BaseModel): business_id:str; items:list[OrderItemIn]; currency:Lit
 class BusinessIn(BaseModel): name:str; description:str|None=None; business_type_id:str|None=None; country:Literal['AR','VE']; city:str; address:str; own_delivery:bool=True; courier_enabled:bool=True
 class BusinessTypeIn(BaseModel): name:str; slug:str; icon:str='🏪'; active:bool=True; order_index:int=0
 class CategoryIn(BaseModel): name:str; slug:str; icon:str='🛒'; parent_id:str|None=None; business_type_id:str|None=None; active:bool=True; order_index:int=0
+class AddressIn(BaseModel): label:str='Casa'; line1:str; city:str; province:str; country:Literal['AR','VE']; postal_code:str|None=None; reference:str|None=None; latitude:float|None=None; longitude:float|None=None; is_default:bool=False
 class PaymentIntentIn(BaseModel): order_id:str; provider:Literal['SIMULATED','MERCADO_PAGO']='SIMULATED'
