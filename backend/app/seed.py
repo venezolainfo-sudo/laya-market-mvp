@@ -35,10 +35,13 @@ def run():
         types=ensure_taxonomy(db)
         admin=db.scalar(select(User).where(User.email=='admin@layamarket.local'))
         if admin:
-            for b in db.scalars(select(Business).where(Business.business_type_id.is_(None))).all():b.business_type_id=types['supermercados'].id
-            db.commit();print('Taxonomía LAYA Market actualizada');return
+            for b in db.scalars(select(Business)).all():
+                if not b.business_type_id:b.business_type_id=types['supermercados'].id
+                if b.name=='Mercado Demo LAYA' and b.country=='AR' and b.latitude is None:
+                    b.latitude=-32.8895;b.longitude=-68.8458;b.delivery_radius_km=12
+            db.commit();print('Taxonomía y geolocalización LAYA Market actualizadas');return
         admin=User(email='admin@layamarket.local',password_hash=hash_password('Admin123!'),name='Administración LAYA',role=Role.ADMIN,country='AR');merchant=User(email='comercio@layamarket.local',password_hash=hash_password('Comercio123!'),name='Comercio Demo',role=Role.MERCHANT,country='AR');customer=User(email='cliente@layamarket.local',password_hash=hash_password('Cliente123!'),name='Cliente Demo',role=Role.CUSTOMER,country='AR');db.add_all([admin,merchant,customer]);db.flush()
-        b=Business(owner_id=merchant.id,business_type_id=types['supermercados'].id,name='Mercado Demo LAYA',description='Productos cotidianos con entrega a domicilio.',country='AR',city='Mendoza',address='Zona demo',status=BusinessStatus.APPROVED,own_delivery=True,courier_enabled=True);db.add(b);db.flush()
+        b=Business(owner_id=merchant.id,business_type_id=types['supermercados'].id,name='Mercado Demo LAYA',description='Productos cotidianos con entrega a domicilio.',country='AR',city='Mendoza',address='Zona demo',latitude=-32.8895,longitude=-68.8458,delivery_radius_km=12,status=BusinessStatus.APPROVED,own_delivery=True,courier_enabled=True);db.add(b);db.flush()
         cat=db.scalar(select(Category).where(Category.slug=='panificados'));imgs=['https://images.unsplash.com/photo-1509440159596-0249088772ff?w=800'];db.add(Product(business_id=b.id,category_id=cat.id,name='Pan casero',description='Producto fresco preparado para entrega local.',image_url=imgs[0],price=3500,currency='ARS',stock=20,unit='unidad'));db.add_all([Courier(name='Cadete Demo 1',phone='+54 261 0000001',country='AR',city='Mendoza'),Courier(name='Cadete Demo 2',phone='+54 261 0000002',country='AR',city='Mendoza')]);db.commit();print('Seed aplicado correctamente')
     finally:db.close()
 if __name__=='__main__':run()
