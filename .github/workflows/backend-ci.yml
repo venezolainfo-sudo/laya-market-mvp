@@ -28,6 +28,7 @@ jobs:
       ENV: development
       DATABASE_URL: postgresql+psycopg://postgres:postgres@127.0.0.1:5432/laya_market
       JWT_SECRET: ci-secret-only
+      PYTHONPATH: .
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -39,7 +40,7 @@ jobs:
       - run: python -m compileall app
       - run: python -m alembic upgrade head
       - run: python -m app.seed
-      - run: pytest -q
+      - run: python -m pytest -q
       - run: |
           python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 &
           sleep 3
