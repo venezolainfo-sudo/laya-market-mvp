@@ -5,5 +5,7 @@ class TokenOut(BaseModel): access_token: str; token_type: str='bearer'; role: st
 class ProductIn(BaseModel): name:str; category_id:str; description:str|None=None; image_url:str|None=None; price:float=Field(gt=0); currency:Literal['ARS','USD']='ARS'; stock:int=Field(ge=0); unit:str='unidad'; active:bool=True
 class OrderItemIn(BaseModel): product_id:str; quantity:int=Field(gt=0)
 class OrderIn(BaseModel): business_id:str; items:list[OrderItemIn]; currency:Literal['ARS','USD']; delivery_method:Literal['OWN_DELIVERY','COURIER']; delivery_address:str; payment_method:Literal['CASH','TRANSFER','MERCADO_PAGO','SIMULATED']='SIMULATED'; delivery_fee:float=Field(ge=0, default=0)
-class BusinessIn(BaseModel): name:str; description:str|None=None; country:Literal['AR','VE']; city:str; address:str; own_delivery:bool=True; courier_enabled:bool=True
+class BusinessIn(BaseModel): name:str; description:str|None=None; business_type_id:str|None=None; country:Literal['AR','VE']; city:str; address:str; own_delivery:bool=True; courier_enabled:bool=True
+class BusinessTypeIn(BaseModel): name:str; slug:str; icon:str='🏪'; active:bool=True; order_index:int=0
+class CategoryIn(BaseModel): name:str; slug:str; icon:str='🛒'; parent_id:str|None=None; business_type_id:str|None=None; active:bool=True; order_index:int=0
 class PaymentIntentIn(BaseModel): order_id:str; provider:Literal['SIMULATED','MERCADO_PAGO']='SIMULATED'
