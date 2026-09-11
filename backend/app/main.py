@@ -5,6 +5,7 @@ from app.api import router
 from app.catalog_api import router as catalog_router
 from app.geo_api import router as geo_router
 from app.checkout_api import router as checkout_router
+from app.order_ops_api import router as order_ops_router
 
 app = FastAPI(title=settings.app_name, version="0.1.0")
 app.add_middleware(CORSMiddleware,allow_origins=settings.cors_list,allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?",allow_credentials=True,allow_methods=["*"],allow_headers=["*"])
@@ -12,6 +13,7 @@ app.include_router(router)
 app.include_router(catalog_router)
 app.include_router(geo_router)
 app.include_router(checkout_router)
+app.include_router(order_ops_router)
 
 @app.get("/")
 def root(): return {"name":"LAYA Market API","docs":"/docs"}
