@@ -8,14 +8,14 @@ services:
       POSTGRES_USER: laya
       POSTGRES_PASSWORD: laya_dev_password
     ports:
-      - "5433:5432"
+      - "5432"
     volumes:
       - laya_market_postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U laya -d laya_market"]
       interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 20
 
 volumes:
   laya_market_postgres_data:
