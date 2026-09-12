@@ -15,12 +15,20 @@ class Settings(BaseSettings):
     whatsapp_access_token: str = ""
     whatsapp_phone_number_id: str = ""
     whatsapp_verify_token: str = ""
+    whatsapp_app_secret: str = ""
     whatsapp_api_version: str = "v23.0"
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
     @property
-    def cors_list(self): return [x.strip() for x in self.cors_origins.split(",") if x.strip()]
+    def cors_list(self):
+        return [x.strip() for x in self.cors_origins.split(",") if x.strip()]
+
     @property
-    def cloudinary_ready(self): return bool(self.cloudinary_cloud_name and self.cloudinary_api_key and self.cloudinary_api_secret)
+    def cloudinary_ready(self):
+        return bool(self.cloudinary_cloud_name and self.cloudinary_api_key and self.cloudinary_api_secret)
+
     @property
-    def whatsapp_cloud_ready(self): return bool(self.whatsapp_access_token and self.whatsapp_phone_number_id)
+    def whatsapp_cloud_ready(self):
+        return bool(self.whatsapp_access_token and self.whatsapp_phone_number_id and self.whatsapp_verify_token)
+
 settings = Settings()
