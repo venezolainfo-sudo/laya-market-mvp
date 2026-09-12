@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     whatsapp_business_number: str = "+5492612779620"
     whatsapp_access_token: str = ""
     whatsapp_phone_number_id: str = ""
+    whatsapp_verify_token: str = ""
     whatsapp_api_version: str = "v23.0"
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
     @property
