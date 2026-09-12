@@ -31,15 +31,19 @@ def courier_for_user(db:Session,u:User):
 def order_payload(db:Session,o:Order):
     d=db.scalar(select(Delivery).where(Delivery.order_id==o.id));b=db.get(Business,o.business_id);return {'id':o.id,'business_name':b.name if b else '', 'status':o.status.value,'delivery_method':o.delivery_method,'delivery_address':o.delivery_address,'delivery_latitude':o.delivery_latitude,'delivery_longitude':o.delivery_longitude,'customer_name':o.customer_name,'customer_phone':o.customer_phone,'total':float(o.total),'currency':o.currency,'delivery':None if not d else {'id':d.id,'courier_id':d.courier_id,'status':d.status}}
 
-def _can_view_order(u:User,o:Order):
-    return u.role in {Role.ADMIN,Role.SUPERADMIN} or o.customer_id==u.id
+def _can_view_order(db:Session,u:User,o:Order):
+    if u.role in {Role.ADMIN,Role.SUPERADMIN} or o.customer_id==u.id:return True
+    if u.role in {Role.MERCHANT,Role.MERCHANT_STAFF}:
+        b=db.get(Business,o.business_id)
+        return bool(b and b.owner_id==u.id)
+    return False
 
 @router.get('/whatsapp/contact')
 def whatsapp_contact(order_id:str|None=None,u:User=Depends(current_user),db:Session=Depends(get_db)):
     text='Hola LAYA Market'
     if order_id:
         o=db.get(Order,order_id)
-        if not o or not _can_view_order(u,o):raise HTTPException(404,'Pedido no encontrado')
+        if not o or not _can_view_order(db,u,o):raise HTTPException(404,'Pedido no encontrado')
         text=f'Hola LAYA Market, consulto por el pedido #{o.id[:8]}.'
     phone=settings.whatsapp_business_number.replace('+','').replace(' ','');return {'phone':settings.whatsapp_business_number,'url':f'https://wa.me/{phone}?text={quote(text)}','automatic_cloud_api_ready':settings.whatsapp_cloud_ready}
 
@@ -98,7 +102,7 @@ def admin_assign_legacy_path(did:str,cid:str,u:User=Depends(require(Role.ADMIN,R
 @router.get('/tracking/orders/{oid}')
 def tracking(oid:str,u:User=Depends(current_user),db:Session=Depends(get_db)):
     o=db.get(Order,oid)
-    if not o or not _can_view_order(u,o):raise HTTPException(404,'Pedido no encontrado')
+    if not o or not _can_view_order(db,u,o):raise HTTPException(404,'Pedido no encontrado')
     d=db.scalar(select(Delivery).where(Delivery.order_id==oid))
     base={'order_id':oid,'status':o.status.value,'destination':{'latitude':o.delivery_latitude,'longitude':o.delivery_longitude,'address':o.delivery_address}}
     if not d or not d.courier_id:return {**base,'courier':None,'location':None,'tracking_active':False,'stale':False}
