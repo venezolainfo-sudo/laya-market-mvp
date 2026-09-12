@@ -1,0 +1,37 @@
+{
+  "expo": {
+    "name": "LAYA Market Cadete",
+    "slug": "laya-market-courier",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#01040B",
+    "android": {
+      "package": "com.laya.market.courier",
+      "versionCode": 1,
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION"
+      ]
+    },
+    "ios": {
+      "bundleIdentifier": "com.laya.market.courier",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "LAYA Market usa tu ubicación para operar entregas asignadas.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "LAYA Market necesita tu ubicación en segundo plano durante una entrega activa.",
+        "UIBackgroundModes": ["location"]
+      }
+    },
+    "plugins": [
+      ["expo-location", {
+        "locationWhenInUsePermission": "Permite que LAYA Market use tu ubicación durante las entregas.",
+        "isIosBackgroundLocationEnabled": true,
+        "isAndroidBackgroundLocationEnabled": true,
+        "isAndroidForegroundServiceEnabled": true
+      }]
+    ]
+  }
+}
