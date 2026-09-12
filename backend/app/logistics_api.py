@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from urllib.parse import quote
 from fastapi import APIRouter,Depends,HTTPException
 from pydantic import BaseModel,Field
@@ -31,18 +31,24 @@ def courier_for_user(db:Session,u:User):
 def order_payload(db:Session,o:Order):
     d=db.scalar(select(Delivery).where(Delivery.order_id==o.id));b=db.get(Business,o.business_id);return {'id':o.id,'business_name':b.name if b else '', 'status':o.status.value,'delivery_method':o.delivery_method,'delivery_address':o.delivery_address,'delivery_latitude':o.delivery_latitude,'delivery_longitude':o.delivery_longitude,'customer_name':o.customer_name,'customer_phone':o.customer_phone,'total':float(o.total),'currency':o.currency,'delivery':None if not d else {'id':d.id,'courier_id':d.courier_id,'status':d.status}}
 
+def _can_view_order(u:User,o:Order):
+    return u.role in {Role.ADMIN,Role.SUPERADMIN} or o.customer_id==u.id
+
 @router.get('/whatsapp/contact')
 def whatsapp_contact(order_id:str|None=None,u:User=Depends(current_user),db:Session=Depends(get_db)):
     text='Hola LAYA Market'
     if order_id:
         o=db.get(Order,order_id)
-        if not o:raise HTTPException(404,'Pedido no encontrado')
+        if not o or not _can_view_order(u,o):raise HTTPException(404,'Pedido no encontrado')
         text=f'Hola LAYA Market, consulto por el pedido #{o.id[:8]}.'
     phone=settings.whatsapp_business_number.replace('+','').replace(' ','');return {'phone':settings.whatsapp_business_number,'url':f'https://wa.me/{phone}?text={quote(text)}','automatic_cloud_api_ready':settings.whatsapp_cloud_ready}
 
 @router.get('/notifications/my')
 def my_notifications(u:User=Depends(current_user),db:Session=Depends(get_db)):
     rows=db.scalars(select(Notification).where(Notification.user_id==u.id).order_by(Notification.created_at.desc()).limit(100)).all();return [{'id':n.id,'order_id':n.order_id,'kind':n.kind,'title':n.title,'body':n.body,'read':n.read,'created_at':n.created_at.isoformat()} for n in rows]
+@router.get('/notifications/my/summary')
+def my_notifications_summary(u:User=Depends(current_user),db:Session=Depends(get_db)):
+    rows=db.scalars(select(Notification).where(Notification.user_id==u.id).order_by(Notification.created_at.desc()).limit(100)).all();return {'unread':sum(1 for n in rows if not n.read),'latest':None if not rows else {'id':rows[0].id,'title':rows[0].title,'body':rows[0].body,'created_at':rows[0].created_at.isoformat()}}
 @router.patch('/notifications/{nid}/read')
 def read_notification(nid:str,u:User=Depends(current_user),db:Session=Depends(get_db)):
     n=db.get(Notification,nid)
@@ -64,6 +70,8 @@ def courier_location(data:LocationIn,u:User=Depends(require(Role.COURIER)),db:Se
     if data.delivery_id:
         d=db.get(Delivery,data.delivery_id)
         if not d or d.courier_id!=c.id:raise HTTPException(403,'Entrega no asignada a este cadete')
+        o=db.get(Order,d.order_id)
+        if o.status not in {OrderStatus.ASSIGNED,OrderStatus.PICKED_UP,OrderStatus.ON_THE_WAY}:raise HTTPException(409,'Esta entrega no admite tracking activo')
     db.add(CourierLocation(courier_id=c.id,delivery_id=data.delivery_id,latitude=data.latitude,longitude=data.longitude,accuracy=data.accuracy,created_at=datetime.utcnow()));db.commit();return {'ok':True}
 @router.patch('/courier/deliveries/{did}/status')
 def courier_delivery_status(did:str,data:DeliveryStatusIn,u:User=Depends(require(Role.COURIER)),db:Session=Depends(get_db)):
@@ -90,7 +98,12 @@ def admin_assign_legacy_path(did:str,cid:str,u:User=Depends(require(Role.ADMIN,R
 @router.get('/tracking/orders/{oid}')
 def tracking(oid:str,u:User=Depends(current_user),db:Session=Depends(get_db)):
     o=db.get(Order,oid)
-    if not o or (u.role==Role.CUSTOMER and o.customer_id!=u.id):raise HTTPException(404,'Pedido no encontrado')
+    if not o or not _can_view_order(u,o):raise HTTPException(404,'Pedido no encontrado')
     d=db.scalar(select(Delivery).where(Delivery.order_id==oid))
-    if not d or not d.courier_id:return {'order_id':oid,'status':o.status.value,'courier':None,'location':None}
-    c=db.get(Courier,d.courier_id);loc=db.scalar(select(CourierLocation).where(CourierLocation.courier_id==c.id).order_by(CourierLocation.created_at.desc()));return {'order_id':oid,'status':o.status.value,'courier':{'id':c.id,'name':c.name,'phone':c.phone},'location':None if not loc else {'latitude':loc.latitude,'longitude':loc.longitude,'accuracy':loc.accuracy,'updated_at':loc.created_at.isoformat()}}
+    base={'order_id':oid,'status':o.status.value,'destination':{'latitude':o.delivery_latitude,'longitude':o.delivery_longitude,'address':o.delivery_address}}
+    if not d or not d.courier_id:return {**base,'courier':None,'location':None,'tracking_active':False,'stale':False}
+    c=db.get(Courier,d.courier_id)
+    loc=db.scalar(select(CourierLocation).where(CourierLocation.delivery_id==d.id).order_by(CourierLocation.created_at.desc()))
+    if not loc:return {**base,'courier':{'id':c.id,'name':c.name,'phone':c.phone},'location':None,'tracking_active':o.status in {OrderStatus.ASSIGNED,OrderStatus.PICKED_UP,OrderStatus.ON_THE_WAY},'stale':False}
+    now=datetime.now(timezone.utc);created=loc.created_at.replace(tzinfo=timezone.utc) if loc.created_at.tzinfo is None else loc.created_at;age=max(0,int((now-created).total_seconds()))
+    return {**base,'courier':{'id':c.id,'name':c.name,'phone':c.phone},'location':{'latitude':loc.latitude,'longitude':loc.longitude,'accuracy':loc.accuracy,'updated_at':loc.created_at.isoformat(),'age_seconds':age},'tracking_active':o.status in {OrderStatus.ASSIGNED,OrderStatus.PICKED_UP,OrderStatus.ON_THE_WAY},'stale':age>90}
